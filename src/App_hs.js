@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import UserInput from "./UserInput";
-import UserOutput from "./UserOutput";
+import ChartOutput from "./ChartOutput";
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -11,7 +11,6 @@ function App() {
 
   const APIurl = "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
 
-  // 금융상품 데이터 가져오기
   useEffect(() => {
     fetch(APIurl)
       .then(res => res.json())
@@ -21,7 +20,7 @@ function App() {
       });
   }, []);
 
-  // 🔥 OpenAI 추천
+  //추천
   const handleUserSubmit = async (userData) => {
     try {
       const prompt = `
@@ -34,7 +33,7 @@ ${JSON.stringify(products.slice(0, 20))}
 조건:
 - 가장 적합한 상품 6개 선택
 - fin_prdt_cd만 배열로 반환
-- 설명 절대 금지
+- 설명 금지
 
 예:
 ["코드1","코드2"]
@@ -55,30 +54,45 @@ ${JSON.stringify(products.slice(0, 20))}
       const data = await res.json();
 
       if (!data.choices) {
-        console.error("API 오류:", data);
-        alert("API 키 확인 필요");
+        alert("API 오류");
         return;
       }
 
-      const text = data.choices[0].message.content;
-
-      const result = JSON.parse(text);
+      const result = JSON.parse(data.choices[0].message.content);
       setRecommended(result);
 
     } catch (err) {
-      console.error("추천 실패:", err);
+      console.error(err);
     }
   };
+
+  //구조 변경
+  const chartProducts = products
+    .filter(p => recommended.includes(p.fin_prdt_cd))
+    .map(p => {
+      const productOptions = options.filter(
+        o => o.fin_prdt_cd === p.fin_prdt_cd
+      );
+
+      const maxOption = productOptions.reduce(
+        (prev, curr) =>
+          (curr.intr_rate2 || 0) > (prev.intr_rate2 || 0) ? curr : prev,
+        {}
+      );
+
+      return {
+        id: p.fin_prdt_cd,
+        name: p.fin_prdt_nm,
+        period: parseInt(maxOption.save_trm || 12),
+        rate: parseFloat(maxOption.intr_rate2 || 0)
+      };
+    });
 
   return (
     <div>
       <UserInput onSubmit={handleUserSubmit} />
 
-      <UserOutput
-        recommendedCodes={recommended}
-        products={products}
-        options={options}
-      />
+      <ChartOutput chartProducts={chartProducts} />
     </div>
   );
 }
