@@ -1,5 +1,5 @@
 import React from 'react';
-import FinancialInput from './components/FinancialInput.js'; // 질문자님과 팀원 4의 작업물
+import FinancialInput from './components/FinancialInput.js'; 
 
 function App() {
   return (
@@ -10,7 +10,7 @@ function App() {
       </header>
       
       <main style={{ padding: '40px' }}>
-        {/* 질문자님과 팀원 4님이 만든 입력 폼을 여기에 배치 */}
+        
         <FinancialInput />
       </main>
 
