@@ -1,5 +1,5 @@
 import React from 'react';
-import FinancialInput from './components/FinancialInput'; // 질문자님과 팀원 4의 작업물
+import FinancialInput from './components/FinancialInput.js'; // 질문자님과 팀원 4의 작업물
 
 function App() {
   return (

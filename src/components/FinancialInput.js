@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
 
-function FinancialInput() {
+function FinancialInput({ onFormSubmit }) {
   const [formData, setFormData] = useState({
-    // 1. 노출 항목
     age: '',
     monthlySavings: '',
     income: '',
     job: '',
     contractType: '정규직',
-    minTerm: 3,
-    maxTerm: 12,
-    
-    // 2. 숨겨진 항목 (추후 확장용)
+    term: 12, // 기본값 12개월
+    // 숨겨진 항목들
     houseOwned: 'N',
     carOwned: 'N',
     disabled: 'N',
@@ -24,25 +21,30 @@ function FinancialInput() {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // 부모 컴포넌트(App.js)로 데이터 전달
+    onFormSubmit(formData);
+  };
+
   return (
-    <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '10px', maxWidth: '600px', margin: '20px auto', textAlign: 'left' }}>
-      <h2 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>💰 금융 정보 입력</h2>
+    <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '10px', maxWidth: '500px', margin: '20px auto', textAlign: 'left' }}>
+      <h2 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>💰 맞춤 금융 정보 입력</h2>
       
-      {/* --- 노출 섹션 --- */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div>
           <label>나이: </label>
-          <input name="age" type="number" value={formData.age} onChange={handleChange} placeholder="예: 28" />
+          <input name="age" type="number" value={formData.age} onChange={handleChange} placeholder="예: 28" required />
         </div>
 
         <div>
-          <label>월 저축액 (만원): </label>
-          <input name="monthlySavings" type="number" value={formData.monthlySavings} onChange={handleChange} placeholder="예: 100" />
+          <label>월 저축 가능 금액 (만원): </label>
+          <input name="monthlySavings" type="number" value={formData.monthlySavings} onChange={handleChange} placeholder="예: 100" required />
         </div>
 
         <div>
-          <label>소득 (연봉/만원): </label>
-          <input name="income" type="number" value={formData.income} onChange={handleChange} placeholder="예: 4000" />
+          <label>연 소득 (만원): </label>
+          <input name="income" type="number" value={formData.income} onChange={handleChange} placeholder="예: 4000" required />
         </div>
 
         <div>
@@ -60,47 +62,41 @@ function FinancialInput() {
           </select>
         </div>
 
-        {/* 만기일자 범위 설정 */}
+        {/* 단일 만기 설정 (슬라이더 + 숫자 표시) */}
         <div style={{ padding: '15px', backgroundColor: '#f0f4f8', borderRadius: '8px' }}>
-          <label style={{ fontWeight: 'bold' }}>📅 원하는 만기 기간 ({formData.minTerm} ~ {formData.maxTerm}개월)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <span>최소 1</span>
-            <input 
-              name="minTerm" type="range" min="1" max="36" 
-              value={formData.minTerm} onChange={handleChange} 
-            />
-            <span>{formData.minTerm}개월</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <span>최대 36</span>
-            <input 
-              name="maxTerm" type="range" min="1" max="36" 
-              value={formData.maxTerm} onChange={handleChange} 
-            />
-            <span>{formData.maxTerm}개월</span>
+          <label style={{ fontWeight: 'bold' }}>📅 희망 만기 기간: {formData.term}개월</label>
+          <input 
+            name="term" 
+            type="range" 
+            min="1" 
+            max="36" 
+            value={formData.term} 
+            onChange={handleChange} 
+            style={{ width: '100%', marginTop: '10px' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+            <span>1개월</span>
+            <span>36개월</span>
           </div>
         </div>
-      </div>
 
-      {/* --- 숨겨진 섹션 (Hidden 영역) --- */}
-      {/* 나중에 쓸 수 있도록 데이터 바인딩은 되어있지만 화면에는 나타나지 않습니다. */}
-      <div style={{ display: 'none' }}>
-        <input name="houseOwned" value={formData.houseOwned} readOnly />
-        <input name="carOwned" value={formData.carOwned} readOnly />
-        <input name="disabled" value={formData.disabled} readOnly />
-        <input name="gender" value={formData.gender} readOnly />
-        <input name="military" value={formData.military} readOnly />
-      </div>
-
-      <button 
-        style={{ marginTop: '20px', width: '100%', padding: '12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-        onClick={() => {
-          console.log("AI에게 전달될 데이터 객체:", formData);
-          alert("데이터가 콘솔에 저장되었습니다. AI API 호출을 준비합니다.");
-        }}
-      >
-        추천 상품 분석 시작하기
-      </button>
+        <button 
+          type="submit"
+          style={{ 
+            marginTop: '10px', 
+            padding: '12px', 
+            backgroundColor: '#007bff', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '5px', 
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }}
+        >
+          추천 상품 분석 시작하기
+        </button>
+      </form>
     </div>
   );
 }
