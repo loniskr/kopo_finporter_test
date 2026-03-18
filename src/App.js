@@ -129,6 +129,7 @@ function App() {
         const result = JSON.parse(cleanedText);
         console.log("✅ 파싱 결과:", result);
         setRecommended(result);
+        localStorage.setItem(cacheKey, JSON.stringify({ data: result, timestamp: Date.now() }));
       } catch (parseErr) {
         console.error("파싱 실패:", cleanedText);
         alert("AI 응답 데이터 처리에 실패했습니다.");
