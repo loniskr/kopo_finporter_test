@@ -7,8 +7,7 @@ function App() {
   const [options, setOptions] = useState([]);
   const [recommended, setRecommended] = useState([]);
 
-  const OPENAI_API_KEY = process.env.REACT_APP_API_KEY;
-
+  const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
   const APIurl = "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
 
   useEffect(() => {
