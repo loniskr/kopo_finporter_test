@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import FinancialInput from "./components/FinancialInput";
 import UserOutput from "./UserOutput";
+import ChartOutput from "./ChartOutput";
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -30,7 +31,10 @@ function App() {
 // 1. 사전 필터링 (기간 및 가입 한도 체크)
       const filteredByTerm = products.filter(p => {
         const productOptions = options.filter(o => o.fin_prdt_cd === p.fin_prdt_cd);
-        const hasTerm = productOptions.some(o => Number(o.save_trm) === Number(userData.term));
+        const hasTerm = productOptions.some(o => {
+          const termDiff = Math.abs(Number(o.save_trm) - Number(userData.term));
+          return termDiff <= 6; 
+        });
         const isWithinLimit = !p.max_limit || (Number(userData.monthlySavings) * 10000 <= Number(p.max_limit));
         return hasTerm && isWithinLimit;
       });
@@ -52,6 +56,7 @@ function App() {
         1. 위 목록의 'cd' 필드 값(상품 코드)만 추출하여 배열로 만드세요.
         2. 상품명(nm)이나 은행명은 절대 포함하지 마세요.
         3. 반드시 ["코드1", "코드2"] 형식의 JSON 배열로만 응답하세요.
+        4. JSON배열 6개 이상이면 상위 5개로 줄이세요.
         
         잘못된 예: ["iM함께적금", "코드1"]
         올바른 예: ["WR0001F", "00266451"]
@@ -104,6 +109,21 @@ function App() {
     }
   };
 
+  const chartProducts = products
+    .filter(p => recommended.includes(p.fin_prdt_cd))
+    .map(p => {
+      const productOptions = options.filter(o => o.fin_prdt_cd === p.fin_prdt_cd);
+      const maxOption = productOptions.reduce((prev, curr) => 
+        (curr.intr_rate2 || 0) > (prev.intr_rate2 || 0) ? curr : prev, {});
+      
+      return {
+        id: p.fin_prdt_cd,
+        name: p.fin_prdt_nm,
+        period: parseInt(maxOption.save_trm || 12),
+        rate: parseFloat(maxOption.intr_rate2 || 0)
+      };
+    });
+
   return (
     <div>
       <header style={{ textAlign: 'center', padding: '20px', backgroundColor: '#f8f9fa' }}>
@@ -112,18 +132,16 @@ function App() {
       </header>
       
       <main style={{ padding: '20px' }}>
-        {/* 질문자님이 만드신 단일 만기 폼 연결 */}
+        {/* */}
         <FinancialInput onFormSubmit={handleUserSubmit} />
 
-        {/* 분석 결과 출력 영역 */}
-        <div style={{ marginTop: '30px' }}>
-          {recommended.length > 0 && <h2 style={{ textAlign: 'center' }}>🎯 AI 추천 상품 결과</h2>}
-          <UserOutput
-            recommendedCodes={recommended}
-            products={products}
-            options={options}
-          />
-        </div>
+        {recommended.length > 0 && (
+          <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
+            <ChartOutput chartProducts={chartProducts} />
+          </div>
+        )}
+
+
       </main>
     </div>
   );
