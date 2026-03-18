@@ -17,7 +17,7 @@ function App() {
   const APIurl =
     "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
 
-  // 1. [나의 로직] 금감원 API 로컬 캐시 적용
+  // 금감원 API 로컬 캐시 적용
   useEffect(() => {
     const cached = localStorage.getItem("finProducts");
     if (cached) {
@@ -40,7 +40,7 @@ function App() {
       });
   }, []);
 
-  // [팀원 로직] 추천 결과 나오면 전체 선택 + 각 상품 기본 만기(최고금리 기준)로 초기화
+  // 추천 결과 나오면 전체 선택 + 각 상품 기본 만기(최고금리 기준)로 초기화
   useEffect(() => {
     if (recommended.length) {
       setSelected(recommended);
@@ -56,7 +56,7 @@ function App() {
     }
   }, [recommended, options]);
 
-  // [팀원 로직] 체크박스 및 만기 버튼 토글
+  //  체크박스 및 만기 버튼 토글
   const handleToggle = (id) => setSelected((prev) => prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]);
   const handleTermChange = (code, trm) => setSelectedTerms((prev) => ({ ...prev, [code]: trm }));
 
@@ -65,7 +65,7 @@ function App() {
     setStep("loading"); // 로딩 애니메이션 켜기
     setUserData(formData);
 
-    // 2. [나의 로직] AI 추천 로컬 캐시 (토큰 절약의 핵심!)
+    // AI 추천 로컬 캐시 (토큰 절약의 핵심!)
     const CACHE_TTL = 1000 * 60 * 60; // 1시간
     const cacheKey = "recommend_" + btoa(encodeURIComponent(JSON.stringify(formData)));
     const cached = localStorage.getItem(cacheKey);
@@ -84,7 +84,7 @@ function App() {
       const minTrm = formData.minMaturity ? Number(formData.minMaturity) : null;
       const maxTrm = formData.maxMaturity ? Number(formData.maxMaturity) : null;
 
-      // 3. [나의 로직 + 팀원 로직 융합] 사전 필터링 및 토큰 다이어트
+      // 사전 필터링 및 토큰 다이어트
       const filteredProducts = products.filter((p) => {
         const productOptions = options.filter((o) => o.fin_prdt_cd === p.fin_prdt_cd);
         
@@ -96,8 +96,8 @@ function App() {
           return aboveMin && belowMax;
         });
 
-        // 가입 한도 필터링 (나의 로직 추가)
-        const isWithinLimit = !p.max_limit || (Number(formData.saving || 0) <= Number(p.max_limit));
+        // 가입 한도 필터링 
+        const isWithinLimit = !p.max_limit || ((Number(formData.saving || 0)*10000) <= Number(p.max_limit));
 
         return hasValidTrm && isWithinLimit;
       });
@@ -108,7 +108,7 @@ function App() {
         return;
       }
 
-      // 토큰 다이어트 (원본 6000 -> 2000으로 축소)
+      // 토큰 다이어트 
       const simplifiedProducts = filteredProducts.slice(0, 20).map(p => ({
         cd: p.fin_prdt_cd,
         nm: p.fin_prdt_nm,
@@ -138,7 +138,14 @@ function App() {
       const data = await res.json();
       if (!data.choices) throw new Error("API 오류");
 
-      // 4. [나의 로직] 답변 정제 및 파싱 에러 방지 (강제 6개 자르기)
+      if (data.usage) {
+        console.log("--- 💡 실시간 토큰 사용량 ---");
+        console.log(`입력(Prompt): ${data.usage.prompt_tokens}`);
+        console.log(`출력(Completion): ${data.usage.completion_tokens}`);
+        console.log(`총합(Total): ${data.usage.total_tokens}`);
+      }
+
+      //  답변 정제 및 파싱 에러 방지 (강제 6개 자르기)
       let text = data.choices[0].message.content;
       const cleanedText = text.replace(/```json|```/g, "").trim();
       
@@ -155,7 +162,7 @@ function App() {
     }
   };
 
-  // [팀원 로직] 체크된 상품 + 선택된 만기 기준으로 그래프 데이터 생성
+  //체크된 상품 + 선택된 만기 기준으로 그래프 데이터 생성
   const chartProducts = products
     .filter((p) => selected.includes(p.fin_prdt_cd))
     .map((p) => {
@@ -174,7 +181,7 @@ function App() {
       };
     });
 
-  // 렌더링 영역 (팀원의 3단계 UI 구조 유지)
+  // 렌더링 영역 
   if (step === "loading") {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "var(--background, #FFF9F0)", gap: "16px" }}>

@@ -14,6 +14,8 @@ const styles = {
     position: "relative",
     width: "100%",
     maxWidth: "420px",
+    marginTop: "130px", 
+
   },
   pigWrap: {
     position: "absolute",
@@ -152,7 +154,7 @@ function UserInput({ onSubmit }) {
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>월 저축 *</label>
+              <label style={styles.label}>월 저축 (만원) *</label>
               <input
                 type="number"
                 name="saving"
@@ -161,12 +163,12 @@ function UserInput({ onSubmit }) {
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 style={styles.input}
-                placeholder="예: 500000"
+                placeholder="예: 50"
               />
             </div>
 
             <div style={styles.field}>
-              <label style={styles.label}>소득 *</label>
+              <label style={styles.label}>연 소득 (만원)*</label>
               <input
                 type="number"
                 name="income"
@@ -175,7 +177,7 @@ function UserInput({ onSubmit }) {
                 onFocus={(e) => { handleFocus(e); setIsIncomeFocused(true); }}
                 onBlur={(e) => { handleBlur(e); setIsIncomeFocused(false); }}
                 style={styles.input}
-                placeholder="예: 3500000"
+                placeholder="예: 3500"
               />
               {isIncomeFocused && (
                 <p style={styles.hint}>돼지는 지금 안 보고 있어요 💕</p>
