@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,19 +12,17 @@ import { Line } from "react-chartjs-2";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
-// 더미 데이터
-const dummyProducts = [
-  { id: "p1", name: "6개월 적금", period: 6, rate: 2.3 },
-  { id: "p2", name: "12개월 적금", period: 12, rate: 2.55 },
-  { id: "p3", name: "24개월 적금", period: 24, rate: 2.6 },
-  { id: "p4", name: "36개월 적금", period: 36, rate: 2.65 }
-];
-
-const monthlyDeposit = 1000000; // 월 납입액
+const monthlyDeposit = 1000000;
 const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#a82b83", '#7bfb0a']; // 고정 색상
 
-function ChartOutput() {
-  const [selected, setSelected] = useState(dummyProducts.map(p => p.id));
+function ChartOutput({ chartProducts }) {
+  const [selected, setSelected] = useState([]);
+
+  useEffect(() => {
+    setSelected(chartProducts.map(p => p.id));
+  }, [chartProducts]);
+
+  if (!chartProducts.length) return null;
 
   const toggleProduct = (id) => {
     setSelected(prev =>
@@ -34,7 +32,7 @@ function ChartOutput() {
     );
   };
 
-  const visibleProducts = dummyProducts
+  const visibleProducts = chartProducts
     .filter(p => selected.includes(p.id))
     .sort((a, b) => a.period - b.period);
 
@@ -44,12 +42,18 @@ function ChartOutput() {
   for (let i = 0; i <= maxPeriod; i += 2) {
     labels.push(`${i}개월`);
   }
-
   const calculateInterest = (period, rate) => {
     return Math.round(monthlyDeposit * period * (period + 1) / 2 * (rate / 100 / 12));
   };
 
-  // dataset 생성, 만기 지점에만 큰 point 표시
+  const calculateMonthlyInterest = (month, rate) => {
+  // 매달 납입된 금액에 대해 각각 이자 발생
+  // 1개월차: 1개월 이자, 2개월차: 2개월 이자 ...
+  return Math.round(
+    monthlyDeposit * (month * (month + 1) / 2) * (rate / 100 / 12)
+  );
+  };
+
   const datasets = visibleProducts.map((p, index) => {
     const data = [];
     const pointRadius = [];
@@ -57,13 +61,14 @@ function ChartOutput() {
       if (i === 0) {
         data.push(0);
         pointRadius.push(0);
-      } else if (i < p.period) {
-        data.push(monthlyDeposit * i);
-        pointRadius.push(0);
-      } else {
-        data.push(monthlyDeposit * p.period + calculateInterest(p.period, p.rate));
-        // 만기 지점과 끝점에 포인트 표시
+      } else if (i <= p.period) {
+        // 👉 해당 시점까지 누적 이자만 표시
+        data.push(calculateInterest(i, p.rate));
         pointRadius.push(i === p.period ? 6 : 0);
+      } else {
+        // 👉 만기 이후는 고정
+        data.push(calculateInterest(p.period, p.rate));
+        pointRadius.push(0);
       }
     }
 
@@ -74,15 +79,18 @@ function ChartOutput() {
       backgroundColor: "transparent",
       tension: 0.3,
       pointRadius,
+      pointHoverRadius: 10,
+      pointHitRadius: 12,
+      pointBorderWidth: 2,
+      pointBackgroundColor: colors[index % colors.length],
+      pointBorderColor: "#fff",
     };
   });
-
   const chartData = {
     labels,
     datasets
   };
-
-  const options = {
+    const options = {
     layout: { padding: { right: 150 } },
     plugins: {
       tooltip: {
@@ -91,17 +99,12 @@ function ChartOutput() {
             // 첫 줄: 상품 이름
             return context[0].dataset.label;
           },
-          label: function(context) {
-            // 두 번째 줄: 금액
-            const value = context.raw;
-            return `총액: ${value.toLocaleString()}원`;
-          },
           afterBody: function(context) {
             // 세 번째 줄: 이자
             const datasetIndex = context[0].datasetIndex;
             const prod = visibleProducts[datasetIndex];
-            const total = monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
-            const interest = total - monthlyDeposit * prod.period;
+            //const total = monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
+            const interest = calculateMonthlyInterest(prod.period, prod.rate);
             return `이자: ${interest.toLocaleString()}원`;
           }
         }
@@ -110,7 +113,7 @@ function ChartOutput() {
     },
     scales: {
       x: { title: { display: true, text: "기간(개월)" } },
-      y: { title: { display: true, text: "누적 금액(원)" }, beginAtZero: true }
+      y: { title: { display: true, text: "누적 이자(원)" }, beginAtZero: true }
     },
     responsive: true,
     maintainAspectRatio: false,
@@ -125,37 +128,54 @@ function ChartOutput() {
         ctx.textBaseline = "middle";
         ctx.font = "bold 12px Arial";
 
-        chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const points = chart.data.datasets.map((dataset, datasetIndex) => {
           const meta = chart.getDatasetMeta(datasetIndex);
           const lastPoint = meta.data[meta.data.length - 1];
-          const prod = visibleProducts[datasetIndex];
+
+          return {
+            datasetIndex,
+            x: lastPoint.x,
+            y: lastPoint.y,
+          };
+        });
+
+        // 2️⃣ y 기준 정렬
+        points.sort((a, b) => a.y - b.y);
+
+        // 3️⃣ 겹침 감지 후 최소 간격 유지
+        const minGap = 40;
+
+        for (let i = 1; i < points.length; i++) {
+          if (points[i].y - points[i - 1].y < minGap) {
+            points[i].y = points[i - 1].y + minGap;
+          }
+        }
+        points.forEach((pt) => {
+          const prod = visibleProducts[pt.datasetIndex];
 
           const total = monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
+
           const interest = total - monthlyDeposit * prod.period;
 
-          ctx.fillStyle = colors[datasetIndex % colors.length];
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.font = "bold 14px Arial";
+          ctx.fillStyle = colors[pt.datasetIndex % colors.length];
 
-          const x = lastPoint.x + 10; // 오른쪽 약간 offset
-          const y = lastPoint.y;
+          const x = pt.x + 10;
+          const y = pt.y - 10;
 
-          // 첫 번째 줄: 총액
+          // 총액
           ctx.fillText(`${total.toLocaleString()}원`, x, y);
 
-          // 두 번째 줄: 괄호 안 이자
-          ctx.fillText(`(${interest.toLocaleString()}+)`, x, y + 18); // 18px 아래로
-        });
-      }
-    }
-  };
-
+          // 이자
+          ctx.fillText(`(${interest.toLocaleString()}+)`, x, y + 18);
+              });
+            }
+          }
+        };
   return (
     <div style={{ width: "1000px", height: "500px" }}>
-      <h2>추천상품 비교</h2>
+      <h2>추천 상품 그래프</h2>
 
-      {dummyProducts.map((p) => (
+      {chartProducts.map(p => (
         <div key={p.id}>
           <label>
             <input
