@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import UserInput from "./UserInput";
 import ChartOutput from "./ChartOutput";
+import "./globals.css";
 
 function App() {
   const [products, setProducts] = useState([]);

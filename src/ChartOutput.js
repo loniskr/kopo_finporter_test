@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,50 +8,70 @@ import {
   Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { PigCharacter } from "./components/PigCharacter";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 const monthlyDeposit = 1000000;
-const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#a82b83", '#7bfb0a']; // 고정 색상
+const colors = ["#8FBC8F", "#E6739F", "#6aabdd", "#d62728", "#a82b83", "#e8a838"];
+
+const styles = {
+  page: {
+    backgroundColor: "var(--background, #FFF9F0)",
+    padding: "24px 16px 32px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  outer: {
+    position: "relative",
+    width: "100%",
+    maxWidth: "860px",
+  },
+  pigWrap: {
+    position: "absolute",
+    top: "-118px",
+    right: "24px",
+    zIndex: 10,
+    pointerEvents: "none",
+  },
+  card: {
+    backgroundColor: "var(--card, #FFFBF5)",
+    border: "2px solid var(--border, #E8D4C0)",
+    borderRadius: "20px",
+    padding: "28px",
+    position: "relative",
+    zIndex: 1,
+    overflow: "visible",
+  },
+  heading: {
+    fontSize: "18px",
+    fontWeight: "var(--font-weight-medium, 500)",
+    color: "var(--foreground, #3D3D3D)",
+    marginBottom: "20px",
+  },
+  chartWrap: {
+    width: "100%",
+    height: "440px",
+  },
+};
 
 function ChartOutput({ chartProducts }) {
-  const [selected, setSelected] = useState([]);
-
-  useEffect(() => {
-    setSelected(chartProducts.map(p => p.id));
-  }, [chartProducts]);
-
   if (!chartProducts.length) return null;
 
-  const toggleProduct = (id) => {
-    setSelected(prev =>
-      prev.includes(id)
-        ? prev.filter(v => v !== id)
-        : [...prev, id]
-    );
-  };
-
-  const visibleProducts = chartProducts
-    .filter(p => selected.includes(p.id))
-    .sort((a, b) => a.period - b.period);
-
-  const maxPeriod = Math.max(...visibleProducts.map(p => p.period));
+  const visibleProducts = [...chartProducts].sort((a, b) => a.period - b.period);
+  const maxPeriod = Math.max(...visibleProducts.map((p) => p.period));
 
   const labels = [];
   for (let i = 0; i <= maxPeriod; i += 2) {
     labels.push(`${i}개월`);
   }
-  const calculateInterest = (period, rate) => {
-    return Math.round(monthlyDeposit * period * (period + 1) / 2 * (rate / 100 / 12));
-  };
 
-  const calculateMonthlyInterest = (month, rate) => {
-  // 매달 납입된 금액에 대해 각각 이자 발생
-  // 1개월차: 1개월 이자, 2개월차: 2개월 이자 ...
-  return Math.round(
-    monthlyDeposit * (month * (month + 1) / 2) * (rate / 100 / 12)
-  );
-  };
+  const calculateInterest = (period, rate) =>
+    Math.round(monthlyDeposit * period * ((period + 1) / 2) * (rate / 100 / 12));
+
+  const calculateMonthlyInterest = (month, rate) =>
+    Math.round(monthlyDeposit * ((month * (month + 1)) / 2) * (rate / 100 / 12));
 
   const datasets = visibleProducts.map((p, index) => {
     const data = [];
@@ -62,16 +81,13 @@ function ChartOutput({ chartProducts }) {
         data.push(0);
         pointRadius.push(0);
       } else if (i <= p.period) {
-        // 👉 해당 시점까지 누적 이자만 표시
         data.push(calculateInterest(i, p.rate));
         pointRadius.push(i === p.period ? 6 : 0);
       } else {
-        // 👉 만기 이후는 고정
         data.push(calculateInterest(p.period, p.rate));
         pointRadius.push(0);
       }
     }
-
     return {
       label: p.name,
       data,
@@ -86,41 +102,31 @@ function ChartOutput({ chartProducts }) {
       pointBorderColor: "#fff",
     };
   });
-  const chartData = {
-    labels,
-    datasets
-  };
-    const options = {
+
+  const chartData = { labels, datasets };
+
+  const options = {
     layout: { padding: { right: 150 } },
     plugins: {
       tooltip: {
         callbacks: {
-          title: function(context) {
-            // 첫 줄: 상품 이름
-            return context[0].dataset.label;
-          },
-          afterBody: function(context) {
-            // 세 번째 줄: 이자
-            const datasetIndex = context[0].datasetIndex;
-            const prod = visibleProducts[datasetIndex];
-            //const total = monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
+          title: (context) => context[0].dataset.label,
+          afterBody: (context) => {
+            const prod = visibleProducts[context[0].datasetIndex];
             const interest = calculateMonthlyInterest(prod.period, prod.rate);
             return `이자: ${interest.toLocaleString()}원`;
-          }
-        }
+          },
+        },
       },
-      legend: { position: "top" }
+      legend: { position: "top" },
     },
     scales: {
       x: { title: { display: true, text: "기간(개월)" } },
-      y: { title: { display: true, text: "누적 이자(원)" }, beginAtZero: true }
+      y: { title: { display: true, text: "누적 이자(원)" }, beginAtZero: true },
     },
     responsive: true,
     maintainAspectRatio: false,
-    // draw hook으로 끝점 총액 표시
     animation: {
-      legend: { position: "top" },
-      tooltip: { enabled: true },
       onComplete: function () {
         const chart = this;
         const ctx = chart.ctx;
@@ -131,64 +137,44 @@ function ChartOutput({ chartProducts }) {
         const points = chart.data.datasets.map((dataset, datasetIndex) => {
           const meta = chart.getDatasetMeta(datasetIndex);
           const lastPoint = meta.data[meta.data.length - 1];
-
-          return {
-            datasetIndex,
-            x: lastPoint.x,
-            y: lastPoint.y,
-          };
+          return { datasetIndex, x: lastPoint.x, y: lastPoint.y };
         });
 
-        // 2️⃣ y 기준 정렬
         points.sort((a, b) => a.y - b.y);
-
-        // 3️⃣ 겹침 감지 후 최소 간격 유지
         const minGap = 40;
-
         for (let i = 1; i < points.length; i++) {
           if (points[i].y - points[i - 1].y < minGap) {
             points[i].y = points[i - 1].y + minGap;
           }
         }
+
         points.forEach((pt) => {
           const prod = visibleProducts[pt.datasetIndex];
-
-          const total = monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
-
+          const total =
+            monthlyDeposit * prod.period + calculateInterest(prod.period, prod.rate);
           const interest = total - monthlyDeposit * prod.period;
-
           ctx.fillStyle = colors[pt.datasetIndex % colors.length];
+          ctx.fillText(`${total.toLocaleString()}원`, pt.x + 10, pt.y - 10);
+          ctx.fillText(`(${interest.toLocaleString()}+)`, pt.x + 10, pt.y + 8);
+        });
+      },
+    },
+  };
 
-          const x = pt.x + 10;
-          const y = pt.y - 10;
-
-          // 총액
-          ctx.fillText(`${total.toLocaleString()}원`, x, y);
-
-          // 이자
-          ctx.fillText(`(${interest.toLocaleString()}+)`, x, y + 18);
-              });
-            }
-          }
-        };
   return (
-    <div style={{ width: "1000px", height: "500px" }}>
-      <h2>추천 상품 그래프</h2>
-
-      {chartProducts.map(p => (
-        <div key={p.id}>
-          <label>
-            <input
-              type="checkbox"
-              checked={selected.includes(p.id)}
-              onChange={() => toggleProduct(p.id)}
-            />
-            {p.name} ({p.rate}%)
-          </label>
+    <div style={styles.page}>
+      <div style={{ ...styles.outer, marginTop: "118px" }}>
+        <div style={styles.card}>
+          {/* 돼지 빼꼼 - card 기준 absolute, card overflow:visible */}
+          <div style={styles.pigWrap}>
+            <PigCharacter isWatching={true} />
+          </div>
+          <h2 style={styles.heading}>추천 상품 그래프</h2>
+          <div style={styles.chartWrap}>
+            <Line data={chartData} options={options} />
+          </div>
         </div>
-      ))}
-
-      <Line data={chartData} options={options} />
+      </div>
     </div>
   );
 }
