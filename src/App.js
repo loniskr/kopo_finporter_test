@@ -1,34 +1,65 @@
 import React, { useState, useEffect } from "react";
 import FinancialInput from "./components/FinancialInput";
-import UserOutput from "./UserOutput";
 import ChartOutput from "./ChartOutput";
+// import UserOutput from "./UserOutput";
 
 function App() {
   const [products, setProducts] = useState([]);
   const [options, setOptions] = useState([]);
   const [recommended, setRecommended] = useState([]);
 
+  const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+  const APIurl = "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
 
-  // 1. 금감원 API 호출 
+
+
+  
   useEffect(() => {
-    const APIurl = "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
-    
+    // 1. 금감원 API 로컬 캐시
+    const cached = localStorage.getItem("finProducts");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      setProducts(parsed.products);
+      setOptions(parsed.options);
+      console.log("✅ 금감원 API 로컬 캐시 사용");
+      return;
+    }
+
     fetch(APIurl)
       .then(res => res.json())
       .then(data => {
         if (data.result) {
+          const fetchedProducts = data.result.baseList;
+          const fetchedOptions = data.result.optionList;
           setProducts(data.result.baseList);
           setOptions(data.result.optionList);
+          localStorage.setItem("finProducts", JSON.stringify({ products: fetchedProducts, options: fetchedOptions }));
+          console.log("📡 금감원 API 새로 호출 및 저장");
         }
       })
-      .catch(err => console.error("API 데이터 로드 실패:", err));
+      .catch(err => console.error("금감원 API 데이터 로드 실패:", err));
   }, []);
 
 // 2. FinancialInput에서 전달된 데이터를 받아 OpenAI 추천 실행
   const handleUserSubmit = async (userData) => {
+    const CACHE_TTL = 1000 * 60 * 60; // 1시간
+    const cacheKey = "recommend_" + btoa(encodeURIComponent(JSON.stringify(userData)));
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Date.now() - parsed.timestamp < CACHE_TTL) {
+        console.log("AI 추천 로컬 캐시 사용");
+        setRecommended(parsed.data);
+        return;
+      } else {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
     try {
       const OPENAI_API_KEY=process.env.REACT_APP_OPENAI_API_KEY;
-// 1. 사전 필터링 (기간 및 가입 한도 체크)
+    // 1. 사전 필터링 (기간 및 가입 한도 체크)
       const filteredByTerm = products.filter(p => {
         const productOptions = options.filter(o => o.fin_prdt_cd === p.fin_prdt_cd);
         const hasTerm = productOptions.some(o => {
@@ -38,6 +69,11 @@ function App() {
         const isWithinLimit = !p.max_limit || (Number(userData.monthlySavings) * 10000 <= Number(p.max_limit));
         return hasTerm && isWithinLimit;
       });
+
+      if (filteredByTerm.length === 0) {
+        alert("조건에 맞는 상품이 없습니다. 조건을 변경해주세요.");
+        return;
+      }
 
       // 2. 데이터 요약 (토큰 다이어트)
       const simplifiedProducts = filteredByTerm.slice(0, 20).map(p => ({
@@ -53,13 +89,7 @@ function App() {
         상품 목록: ${JSON.stringify(simplifiedProducts)}
         
         조건:
-        1. 위 목록의 'cd' 필드 값(상품 코드)만 추출하여 배열로 만드세요.
-        2. 상품명(nm)이나 은행명은 절대 포함하지 마세요.
-        3. 반드시 ["코드1", "코드2"] 형식의 JSON 배열로만 응답하세요.
-        4. JSON배열 6개 이상이면 상위 5개로 줄이세요.
-        
-        잘못된 예: ["iM함께적금", "코드1"]
-        올바른 예: ["WR0001F", "00266451"]
+        조건: 위 목록의 'cd' 필드 값(상품 코드)만 추출하여 반드시 ["코드1", "코드2"] 형식의 JSON 배열로만 6개 응답.
       `;
 
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -76,7 +106,7 @@ function App() {
 
       const data = await res.json();
       
-      // 📊 토큰 사용량 콘솔 출력
+      // 토큰 사용량 콘솔 출력
       if (data.usage) {
         console.log("--- 💡 실시간 토큰 사용량 ---");
         console.log(`입력(Prompt): ${data.usage.prompt_tokens}`);
@@ -132,9 +162,9 @@ function App() {
       </header>
       
       <main style={{ padding: '20px' }}>
-        {/* */}
+        {/* 입력 폼 */}
         <FinancialInput onFormSubmit={handleUserSubmit} />
-
+        {/* 그래프 */}
         {recommended.length > 0 && (
           <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
             <ChartOutput chartProducts={chartProducts} />

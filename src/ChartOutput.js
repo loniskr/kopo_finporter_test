@@ -172,7 +172,7 @@ function ChartOutput({ chartProducts }) {
           }
         };
   return (
-    <div style={{ width: "1000px", height: "500px" }}>
+    <div style={{ width: "1100px", height: "500px" }}>
       <h2>추천 상품 그래프</h2>
 
       {chartProducts.map(p => (
