@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import UserInput from "./UserInput";
-import ChartOutput from "./ChartOutput";
+import UserInput from "./UserInput_sj";
+import ChartOutput from "./ChartOutput_sj";
 import "./globals.css";
 
 function App() {
