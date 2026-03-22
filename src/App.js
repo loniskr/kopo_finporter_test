@@ -12,11 +12,10 @@ function App() {
   const [selectedTerms, setSelectedTerms] = useState({});
   const [userData, setUserData] = useState(null);
   const [step, setStep] = useState("input"); // "input" | "loading" | "result"
-
+  const BASE_URL = 'https://finlife.fss.or.kr';
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
   const APIurl =
     "/finlifeapi/savingProductsSearch.json?auth=83ef207ea27c50a956ade0cd398e4a15&topFinGrpNo=020000&pageNo=1";
-
   // 금감원 API 로컬 캐시 적용
   useEffect(() => {
     const cached = localStorage.getItem("finProducts");
